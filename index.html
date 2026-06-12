@@ -509,71 +509,67 @@
 
   let candidates = [];
 
-  // ── FETCH DATA DARI GOOGLE SHEETS (JSONP — bebas CORS) ────
-  function loadFromSheets() {
+  // ── FETCH DATA DARI GOOGLE SHEETS ─────────────────────────
+  async function loadFromSheets() {
     const statusEl = document.getElementById("data-status");
-    const callbackName = "gvizCallback_" + Date.now();
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&t=${Date.now()}`;
 
-    // Buat script tag JSONP
-    const script = document.createElement("script");
-    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&callback=${callbackName}`;
-
-    window[callbackName] = function(json) {
-      // Bersihkan
-      delete window[callbackName];
-      document.head.removeChild(script);
-
+    function parseRows(json) {
       const rows = json.table.rows;
-      if (!rows || rows.length === 0) {
-        candidates = DUMMY_DATA.map((d, i) => ({ ...d, color: AVATAR_COLORS[i % AVATAR_COLORS.length] }));
-        if (statusEl) { statusEl.textContent = "⚠ Sheet kosong — menampilkan data contoh"; statusEl.style.background="#FFFBEB"; statusEl.style.borderColor="#FDE68A"; statusEl.style.color="#B45309"; }
-      } else {
-        candidates = rows.map((row, i) => {
-          const c = row.c;
-          const get = (idx) => (c[idx] && c[idx].v != null) ? String(c[idx].v) : "";
-          return {
-            name:   get(0),
-            email:  get(1),
-            posisi: get(2),
-            dept:   get(3),
-            status: get(4).toLowerCase().trim(),
-            sumber: get(5),
-            skor:   parseInt(get(6)) || 0,
-            tgl:    get(7),
-            color:  AVATAR_COLORS[i % AVATAR_COLORS.length],
-          };
-        }).filter(c => c.name);
-        if (statusEl) { statusEl.textContent = `✅ Data live dari Google Sheets · ${candidates.length} kandidat`; }
-      }
-      updateStats();
-      renderTable(candidates);
-      renderCharts();
-    };
+      if (!rows || rows.length === 0) return null;
+      return rows.map((row, i) => {
+        const c = row.c;
+        const get = (idx) => (c[idx] && c[idx].v != null) ? String(c[idx].v) : "";
+        return {
+          name:   get(0), email:  get(1), posisi: get(2), dept: get(3),
+          status: get(4).toLowerCase().trim(), sumber: get(5),
+          skor:   parseInt(get(6)) || 0, tgl: get(7),
+          color:  AVATAR_COLORS[i % AVATAR_COLORS.length],
+        };
+      }).filter(c => c.name);
+    }
 
-    // Timeout 6 detik — fallback ke data dummy
-    const timer = setTimeout(function() {
-      if (window[callbackName]) {
-        delete window[callbackName];
-        try { document.head.removeChild(script); } catch(e) {}
-        candidates = DUMMY_DATA.map((d, i) => ({ ...d, color: AVATAR_COLORS[i % AVATAR_COLORS.length] }));
-        if (statusEl) { statusEl.textContent = "⚠ Sheet belum dipublish atau timeout — menampilkan data contoh"; statusEl.style.background="#FFFBEB"; statusEl.style.borderColor="#FDE68A"; statusEl.style.color="#B45309"; }
-        updateStats(); renderTable(candidates); renderCharts();
-      }
-    }, 6000);
-
-    const origCallback = window[callbackName];
-    window[callbackName] = function(json) { clearTimeout(timer); origCallback(json); };
-
-    script.onerror = function() { clearTimeout(timer);
-      delete window[callbackName];
+    function showSuccess(n) {
+      if (statusEl) { statusEl.textContent = `✅ Data live dari Google Sheets · ${n} kandidat`; statusEl.style.background="#F0FDF4"; statusEl.style.borderColor="#BBF7D0"; statusEl.style.color="#15803D"; }
+    }
+    function showFallback(msg) {
       candidates = DUMMY_DATA.map((d, i) => ({ ...d, color: AVATAR_COLORS[i % AVATAR_COLORS.length] }));
-      if (statusEl) { statusEl.textContent = "⚠ Gagal memuat sheet — menampilkan data contoh"; statusEl.style.background="#FFFBEB"; statusEl.style.borderColor="#FDE68A"; statusEl.style.color="#B45309"; }
-      updateStats();
-      renderTable(candidates);
-      renderCharts();
-    };
+      if (statusEl) { statusEl.textContent = msg; statusEl.style.background="#FFFBEB"; statusEl.style.borderColor="#FDE68A"; statusEl.style.color="#B45309"; }
+      updateStats(); renderTable(candidates); renderCharts();
+    }
 
-    document.head.appendChild(script);
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+      const json = JSON.parse(text.replace(/^[^\{]*/, "").replace(/\s*\);\s*$/, ""));
+      const parsed = parseRows(json);
+      if (parsed && parsed.length > 0) {
+        candidates = parsed;
+        showSuccess(candidates.length);
+        updateStats(); renderTable(candidates); renderCharts();
+      } else {
+        showFallback("⚠ Sheet kosong — menampilkan data contoh");
+      }
+    } catch(e) {
+      // Fallback JSONP untuk file://
+      const cbName = "gvizCb_" + Date.now();
+      const script = document.createElement("script");
+      script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&callback=${cbName}`;
+      const timer = setTimeout(() => {
+        delete window[cbName];
+        try { document.head.removeChild(script); } catch(_) {}
+        showFallback("⚠ Buka via HTTPS (GitHub Pages) agar data sheet muncul");
+      }, 8000);
+      window[cbName] = function(json) {
+        clearTimeout(timer); delete window[cbName]; document.head.removeChild(script);
+        const parsed = parseRows(json);
+        if (parsed && parsed.length > 0) { candidates = parsed; showSuccess(candidates.length); }
+        else { candidates = DUMMY_DATA.map((d, i) => ({ ...d, color: AVATAR_COLORS[i % AVATAR_COLORS.length] })); }
+        updateStats(); renderTable(candidates); renderCharts();
+      };
+      script.onerror = () => { clearTimeout(timer); showFallback("⚠ Gagal memuat sheet"); };
+      document.head.appendChild(script);
+    }
   }
 
   // ── UPDATE STAT CARDS ──────────────────────────────────────
