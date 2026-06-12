@@ -267,6 +267,54 @@
     .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
     .page-btn:hover:not(.active) { background: var(--bg); }
 
+    /* DETAIL VIEW */
+    .detail-view {
+      display: none; padding: 28px 32px;
+    }
+    .detail-view.active { display: block; }
+    .content.hidden { display: none; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--white); font-size: 13px; font-weight: 600;
+      cursor: pointer; color: var(--dark); margin-bottom: 20px;
+      transition: all 0.15s;
+    }
+    .back-btn:hover { background: var(--bg); }
+    .profile-card {
+      background: var(--white); border-radius: 16px;
+      border: 1px solid var(--border); overflow: hidden;
+      max-width: 860px; margin: 0 auto;
+    }
+    .profile-banner {
+      height: 100px;
+      background: linear-gradient(135deg, #4F46E5 0%, #0EA5E9 100%);
+    }
+    .profile-body { padding: 0 32px 32px; }
+    .profile-avatar-wrap {
+      margin-top: -44px; margin-bottom: 16px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+    }
+    .profile-avatar-large {
+      width: 88px; height: 88px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 800; color: #fff;
+      border: 4px solid #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+    .profile-name { font-size: 22px; font-weight: 800; color: var(--dark); }
+    .profile-sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+    .profile-id { font-size: 12px; color: var(--primary); font-weight: 600;
+      background: var(--primary-light); padding: 3px 10px; border-radius: 20px; display:inline-block; margin-top:6px; }
+    .profile-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px;
+    }
+    .profile-field { padding: 14px 16px; background: var(--bg); border-radius: 10px; }
+    .profile-field label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .profile-field span { font-size: 14px; font-weight: 600; color: var(--dark); }
+    .profile-score-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 6px; }
+    .profile-score-fill { height: 100%; border-radius: 3px; }
+
     /* RESPONSIVE NOTE */
     @media (max-width: 1200px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -487,7 +535,7 @@
 
 <script>
   // ── KONFIGURASI GOOGLE SHEETS ──────────────────────────────
-  const SHEET_ID = "1VDA5uZUk_2aaWlNlp732OtKz7fnm4BQ77NqpLdDYcTk";
+  const SHEET_ID = "1CR2_gDaPXvcN1oXJNAVvdU-bL5v0UQ0Qdr6eVDYsj08";
   const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
   // Warna avatar otomatis berdasarkan index
@@ -534,15 +582,35 @@
     function parseRows(json) {
       const rows = json.table.rows;
       if (!rows || rows.length === 0) return null;
-      // Tidak ada filter tanggal di sini — semua data dimuat penuh
+
+      // Baca header dari cols — bisa tambah/geser kolom di sheet tanpa ubah HTML
+      const cols = json.table.cols;
+      const colMap = {};
+      cols.forEach((col, i) => {
+        const key = (col.label || "").trim().toLowerCase();
+        colMap[key] = i;
+      });
+
+      const col = (row, name) => {
+        const idx = colMap[name.toLowerCase()];
+        if (idx === undefined) return "";
+        const cell = row.c[idx];
+        return (cell && cell.v != null) ? cell.v : "";
+      };
+
       return rows.map((row, i) => {
-        const c = row.c;
-        const get = (idx) => (c[idx] && c[idx].v != null) ? String(c[idx].v) : "";
-        const { dateObj, label } = parseGvizDate(c[7] ? c[7].v : null);
+        const tglRaw = col(row, "tanggal");
+        const { dateObj, label } = parseGvizDate(tglRaw);
+        const statusRaw = String(col(row, "status") || "").toLowerCase().trim();
         return {
-          name:    get(0), email:   get(1), posisi: get(2), dept: get(3),
-          status:  get(4).toLowerCase().trim(), sumber: get(5),
-          skor:    parseInt(get(6)) || 0,
+          id:      String(col(row, "id") || ""),
+          name:    String(col(row, "nama") || ""),
+          email:   String(col(row, "email") || ""),
+          posisi:  String(col(row, "posisi") || ""),
+          dept:    String(col(row, "departemen") || ""),
+          status:  statusRaw,
+          sumber:  String(col(row, "sumber") || ""),
+          skor:    parseInt(col(row, "skor")) || 0,
           tgl:     label, dateObj,
           color:   AVATAR_COLORS[i % AVATAR_COLORS.length],
         };
@@ -667,7 +735,7 @@
           </div>
         </td>
         <td style="color:var(--muted);font-size:12px">${c.tgl}</td>
-        <td><button class="action-btn">Detail</button></td>
+        <td><button class="action-btn" onclick="showDetail('${c.id || c.name}')">Detail</button></td>
       </tr>`;
     }).join("");
   }
@@ -747,6 +815,71 @@
       this.classList.add("active");
     });
   });
+
+  // ── DETAIL VIEW ────────────────────────────────────────────
+  function showDetail(id) {
+    const c = candidates.find(x => x.id === id || x.name === id);
+    if (!c) return;
+
+    const initials = c.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const st = statusMap[c.status] || { label: c.status, cls: "badge-screening" };
+    const sc = scoreColor(c.skor);
+
+    document.getElementById("detail-view").innerHTML = `
+      <button class="back-btn" onclick="hideDetail()">← Kembali ke Dashboard</button>
+      <div class="profile-card">
+        <div class="profile-banner"></div>
+        <div class="profile-body">
+          <div class="profile-avatar-wrap">
+            <div>
+              <div class="profile-avatar-large" style="background:${c.color}">${initials}</div>
+            </div>
+            <span class="badge ${st.cls}" style="margin-bottom:8px;font-size:13px;padding:5px 14px">${st.label}</span>
+          </div>
+          <div class="profile-name">${c.name}</div>
+          <div class="profile-sub">${c.email}</div>
+          ${c.id ? `<span class="profile-id">${c.id}</span>` : ""}
+
+          <div class="profile-grid">
+            <div class="profile-field">
+              <label>Posisi</label>
+              <span>${c.posisi || "-"}</span>
+            </div>
+            <div class="profile-field">
+              <label>Departemen</label>
+              <span>${c.dept || "-"}</span>
+            </div>
+            <div class="profile-field">
+              <label>Sumber Lamaran</label>
+              <span>${c.sumber || "-"}</span>
+            </div>
+            <div class="profile-field">
+              <label>Tanggal Melamar</label>
+              <span>${c.tgl || "-"}</span>
+            </div>
+            <div class="profile-field" style="grid-column:1/-1">
+              <label>Skor Kandidat</label>
+              <span style="color:${sc};font-size:20px;font-weight:800">${c.skor}</span>
+              <div class="profile-score-bar">
+                <div class="profile-score-fill" style="width:${c.skor}%;background:${sc}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    document.querySelector(".content").classList.add("hidden");
+    document.getElementById("detail-view").classList.add("active");
+  }
+
+  function hideDetail() {
+    document.querySelector(".content").classList.remove("hidden");
+    document.getElementById("detail-view").classList.remove("active");
+  }
 </script>
+
+<!-- DETAIL VIEW PANEL -->
+<div class="detail-view main" id="detail-view" style="margin-left:240px"></div>
+
 </body>
 </html>
