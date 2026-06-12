@@ -495,16 +495,16 @@
 
   // DATA DUMMY — dipakai sebagai fallback jika sheet masih kosong
   const DUMMY_DATA = [
-    { name:"Andi Pratama", email:"andi.p@email.com", posisi:"Frontend Developer", dept:"Engineering", status:"interview", sumber:"LinkedIn", skor:82, tgl:"10 Jun 2026" },
-    { name:"Sari Dewi", email:"sari.d@email.com", posisi:"HR Specialist", dept:"Human Resources", status:"screening", sumber:"Jobstreet", skor:74, tgl:"9 Jun 2026" },
-    { name:"Budi Santoso", email:"budi.s@email.com", posisi:"Backend Developer", dept:"Engineering", status:"offer", sumber:"Referral", skor:91, tgl:"8 Jun 2026" },
-    { name:"Rina Maharani", email:"rina.m@email.com", posisi:"Product Manager", dept:"Product", status:"hired", sumber:"LinkedIn", skor:88, tgl:"7 Jun 2026" },
-    { name:"Doni Kurniawan", email:"doni.k@email.com", posisi:"UI/UX Designer", dept:"Design", status:"test", sumber:"Glints", skor:79, tgl:"6 Jun 2026" },
-    { name:"Maya Sari", email:"maya.s@email.com", posisi:"Data Analyst", dept:"Data", status:"rejected", sumber:"Jobstreet", skor:55, tgl:"5 Jun 2026" },
-    { name:"Fajar Nugroho", email:"fajar.n@email.com", posisi:"DevOps Engineer", dept:"Engineering", status:"interview", sumber:"Referral", skor:85, tgl:"4 Jun 2026" },
-    { name:"Citra Lestari", email:"citra.l@email.com", posisi:"Marketing", dept:"Marketing", status:"screening", sumber:"LinkedIn", skor:68, tgl:"3 Jun 2026" },
-    { name:"Hendra Wijaya", email:"hendra.w@email.com", posisi:"Accountant", dept:"Finance", status:"hired", sumber:"Kalibrr", skor:92, tgl:"2 Jun 2026" },
-    { name:"Putri Amalia", email:"putri.a@email.com", posisi:"Frontend Developer", dept:"Engineering", status:"test", sumber:"Glints", skor:77, tgl:"1 Jun 2026" },
+    { name:"Andi Pratama", email:"andi.p@email.com", posisi:"Frontend Developer", dept:"Engineering", status:"interview", sumber:"LinkedIn", skor:82, tgl:"10 Jun 2026", dateObj:new Date(2026,5,10) },
+    { name:"Sari Dewi", email:"sari.d@email.com", posisi:"HR Specialist", dept:"Human Resources", status:"screening", sumber:"Jobstreet", skor:74, tgl:"09 Jun 2026", dateObj:new Date(2026,5,9) },
+    { name:"Budi Santoso", email:"budi.s@email.com", posisi:"Backend Developer", dept:"Engineering", status:"offer", sumber:"Referral", skor:91, tgl:"08 Jun 2026", dateObj:new Date(2026,5,8) },
+    { name:"Rina Maharani", email:"rina.m@email.com", posisi:"Product Manager", dept:"Product", status:"hired", sumber:"LinkedIn", skor:88, tgl:"07 Jun 2026", dateObj:new Date(2026,5,7) },
+    { name:"Doni Kurniawan", email:"doni.k@email.com", posisi:"UI/UX Designer", dept:"Design", status:"test", sumber:"Glints", skor:79, tgl:"06 Jun 2026", dateObj:new Date(2026,5,6) },
+    { name:"Maya Sari", email:"maya.s@email.com", posisi:"Data Analyst", dept:"Data", status:"rejected", sumber:"Jobstreet", skor:55, tgl:"05 Jun 2026", dateObj:new Date(2026,5,5) },
+    { name:"Fajar Nugroho", email:"fajar.n@email.com", posisi:"DevOps Engineer", dept:"Engineering", status:"interview", sumber:"Referral", skor:85, tgl:"04 Jun 2026", dateObj:new Date(2026,5,4) },
+    { name:"Citra Lestari", email:"citra.l@email.com", posisi:"Marketing", dept:"Marketing", status:"screening", sumber:"LinkedIn", skor:68, tgl:"03 Jun 2026", dateObj:new Date(2026,5,3) },
+    { name:"Hendra Wijaya", email:"hendra.w@email.com", posisi:"Accountant", dept:"Finance", status:"hired", sumber:"Kalibrr", skor:92, tgl:"02 Jun 2026", dateObj:new Date(2026,5,2) },
+    { name:"Putri Amalia", email:"putri.a@email.com", posisi:"Frontend Developer", dept:"Engineering", status:"test", sumber:"Glints", skor:77, tgl:"01 Jun 2026", dateObj:new Date(2026,5,1) },
   ];
 
   let candidates = [];
@@ -514,19 +514,41 @@
     const statusEl = document.getElementById("data-status");
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&t=${Date.now()}`;
 
+    function parseGvizDate(val) {
+      if (!val) return { dateObj: null, label: "-" };
+      // Format gviz: "Date(2026,5,10)" — bulan 0-indexed
+      const m = String(val).match(/Date\((\d+),(\d+),(\d+)\)/);
+      if (m) {
+        const d = new Date(+m[1], +m[2], +m[3]);
+        const label = d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
+        return { dateObj: d, label };
+      }
+      // Format string biasa (YYYY-MM-DD atau lainnya)
+      const d = new Date(val);
+      if (!isNaN(d)) {
+        return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
+      }
+      return { dateObj: null, label: String(val) };
+    }
+
     function parseRows(json) {
       const rows = json.table.rows;
       if (!rows || rows.length === 0) return null;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
       return rows.map((row, i) => {
         const c = row.c;
         const get = (idx) => (c[idx] && c[idx].v != null) ? String(c[idx].v) : "";
+        const { dateObj, label } = parseGvizDate(c[7] ? c[7].v : null);
         return {
-          name:   get(0), email:  get(1), posisi: get(2), dept: get(3),
-          status: get(4).toLowerCase().trim(), sumber: get(5),
-          skor:   parseInt(get(6)) || 0, tgl: get(7),
-          color:  AVATAR_COLORS[i % AVATAR_COLORS.length],
+          name:    get(0), email:   get(1), posisi: get(2), dept: get(3),
+          status:  get(4).toLowerCase().trim(), sumber: get(5),
+          skor:    parseInt(get(6)) || 0,
+          tgl:     label, dateObj,
+          color:   AVATAR_COLORS[i % AVATAR_COLORS.length],
         };
-      }).filter(c => c.name);
+      })
+      .filter(c => c.name)
+      .filter(c => !c.dateObj || c.dateObj >= cutoff); // 30 hari terakhir
     }
 
     function showSuccess(n) {
