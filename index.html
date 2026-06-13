@@ -1133,20 +1133,21 @@
             : cards.map(c => {
                 const ini = initials(c.nama);
                 const col = cardColor(c.nama);
-                const dateInfo = c.tgl_gabung    ? `🎉 Gabung: ${c.tgl_gabung}` :
-                                 c.tgl_interview ? `🗣 Interview: ${c.tgl_interview}` :
-                                 c.tgl_test      ? `📝 Test: ${c.tgl_test}` :
-                                 c.tgl_undang    ? `📩 Undang: ${c.tgl_undang}` : "";
+                const dates = [];
+                if (c.tgl_undang)    dates.push(`📩 Diterima: ${c.tgl_undang}`);
+                if (c.tgl_test)      dates.push(`📝 Test: ${c.tgl_test}`);
+                if (c.tgl_interview) dates.push(`🗣 Interview: ${c.tgl_interview}`);
+                if (c.tgl_gabung)    dates.push(`🎉 Gabung: ${c.tgl_gabung}`);
                 return `<div class="kanban-card">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <div style="display:flex;align-items:center;gap:8px">
                     <div style="width:28px;height:28px;border-radius:50%;background:${col};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
                     <div>
                       <div class="kanban-card-name">${c.nama}</div>
                       <div class="kanban-card-id">${c.nomor}</div>
+                      ${c.ket ? `<div style="font-size:10px;color:#B45309;margin-top:2px">⚠ ${c.ket}</div>` : ""}
                     </div>
                   </div>
-                  ${dateInfo ? `<div class="kanban-card-date">${dateInfo}</div>` : ""}
-                  ${c.ket ? `<div class="kanban-card-ket">⚠ ${c.ket}</div>` : ""}
+                  ${dates.length ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">${dates.map(d=>`<div class="kanban-card-date">${d}</div>`).join("")}</div>` : ""}
                 </div>`;
               }).join("")
           }
