@@ -1020,110 +1020,123 @@
     const active  = phases.filter(p => p.phase !== "Hired").length;
     const convPct = total ? Math.round(hired/total*100) : 0;
 
-    // Count per phase
     const phaseCounts = {};
     PHASE_ORDER.forEach(ph => phaseCounts[ph] = 0);
-    phases.forEach(p => { if (phaseCounts[p.phase] !== undefined) phaseCounts[p.phase]++; else phaseCounts[p.phase] = (phaseCounts[p.phase]||0)+1; });
+    phases.forEach(p => { if (phaseCounts[p.phase] !== undefined) phaseCounts[p.phase]++; });
 
-    // Kanban data (filtered)
+    // Only inject static shell once
+    if (!document.getElementById("kanban-board")) {
+      document.getElementById("interview-container").innerHTML = `
+      <style>
+        .kanban-wrap { display:flex; gap:14px; overflow-x:auto; padding-bottom:20px; }
+        .kanban-col  { min-width:210px; max-width:210px; border-radius:12px; overflow:hidden; flex-shrink:0; }
+        .kanban-head { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
+        .kanban-head-title { font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; }
+        .kanban-count { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,0.35); }
+        .kanban-body  { padding:8px; max-height:480px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+                        scrollbar-width:thin; scrollbar-color:rgba(0,0,0,0.15) transparent; }
+        .kanban-card  { background:#fff; border-radius:10px; padding:12px; border:1px solid #E2E8F0;
+                        box-shadow:0 1px 3px rgba(0,0,0,0.05); transition:all 0.15s; }
+        .kanban-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.1); }
+        .kanban-card-name { font-size:12px; font-weight:700; color:var(--dark); line-height:1.3; }
+        .kanban-card-id   { font-size:10px; color:var(--muted); margin-top:2px; }
+        .kanban-card-ket  { font-size:10px; color:#B45309; background:#FFFBEB; padding:3px 7px; border-radius:4px; margin-top:6px; }
+        .kanban-card-date { font-size:10px; color:var(--muted); margin-top:5px; display:flex; align-items:center; gap:4px; }
+        .phase-funnel { display:flex; gap:0; margin-bottom:24px; border-radius:12px; overflow:hidden; }
+        .phase-funnel-item { flex:1; padding:14px 10px; text-align:center; cursor:default; transition:filter 0.15s; }
+        .phase-funnel-item:hover { filter:brightness(0.95); }
+        .phase-funnel-num { font-size:22px; font-weight:800; color:#fff; line-height:1; }
+        .phase-funnel-lbl { font-size:10px; font-weight:600; color:rgba(255,255,255,0.85); margin-top:3px; }
+        .stat-grad { border-radius:14px; padding:20px; color:#fff; }
+      </style>
+
+      <!-- STAT CARDS -->
+      <div class="stats-grid" style="margin-bottom:20px">
+        <div class="stat-grad" style="background:linear-gradient(135deg,#4F46E5,#7C3AED)">
+          <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Total Pipeline</div>
+          <div style="font-size:32px;font-weight:800;line-height:1">${total}</div>
+          <div style="font-size:12px;opacity:.8;margin-top:6px">kandidat di semua phase</div>
+        </div>
+        <div class="stat-grad" style="background:linear-gradient(135deg,#10B981,#059669)">
+          <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Hired</div>
+          <div style="font-size:32px;font-weight:800;line-height:1">${hired}</div>
+          <div style="font-size:12px;opacity:.8;margin-top:6px">berhasil diterima</div>
+        </div>
+        <div class="stat-grad" style="background:linear-gradient(135deg,#F59E0B,#D97706)">
+          <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Aktif Proses</div>
+          <div style="font-size:32px;font-weight:800;line-height:1">${active}</div>
+          <div style="font-size:12px;opacity:.8;margin-top:6px">masih dalam seleksi</div>
+        </div>
+        <div class="stat-grad" style="background:linear-gradient(135deg,#0EA5E9,#0284C7)">
+          <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Conversion Rate</div>
+          <div style="font-size:32px;font-weight:800;line-height:1">${convPct}%</div>
+          <div style="font-size:12px;opacity:.8;margin-top:6px">dari total pipeline</div>
+        </div>
+      </div>
+
+      <!-- PIPELINE FUNNEL -->
+      <div class="phase-funnel" style="margin-bottom:24px">
+        ${PHASE_ORDER.map(ph => {
+          const cfg = PHASE_CFG[ph] || { color:'#94A3B8', label:ph };
+          return `<div class="phase-funnel-item" style="background:${cfg.color}">
+            <div class="phase-funnel-num">${phaseCounts[ph] || 0}</div>
+            <div class="phase-funnel-lbl">${cfg.label}</div>
+          </div>`;
+        }).join('<div style="width:0;border-left:2px dashed rgba(255,255,255,0.3)"></div>')}
+      </div>
+
+      <!-- SEARCH -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div class="search-box" style="width:280px">
+          <span>🔍</span>
+          <input id="phase-search-input" type="text" placeholder="Cari nama kandidat..."
+            oninput="window.phaseSearch(this.value)" autocomplete="off"/>
+        </div>
+        <span id="phase-count-label" style="font-size:13px;color:var(--muted)">${total} kandidat ditampilkan</span>
+      </div>
+
+      <!-- KANBAN (dynamic) -->
+      <div id="kanban-board" class="kanban-wrap"></div>`;
+    }
+
+    // Always re-render only the kanban board
+    renderKanban();
+  }
+
+  function renderKanban() {
     const q = phaseSearchQ.toLowerCase();
     const filtered = q ? phases.filter(p => p.nama.toLowerCase().includes(q) || p.berkas.toLowerCase().includes(q)) : phases;
     const byPhase = {};
     PHASE_ORDER.forEach(ph => byPhase[ph] = []);
-    filtered.forEach(p => { if (byPhase[p.phase]) byPhase[p.phase].push(p); else byPhase[p.phase] = [p]; });
+    filtered.forEach(p => { if (byPhase[p.phase]) byPhase[p.phase].push(p); });
+
+    const lbl = document.getElementById("phase-count-label");
+    if (lbl) lbl.textContent = `${filtered.length} kandidat ditampilkan`;
 
     const AVATAR_C = ["#6366F1","#10B981","#F59E0B","#0EA5E9","#8B5CF6","#EF4444","#EC4899","#14B8A6"];
     const initials = name => name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-    const cardColor = (name, i) => AVATAR_C[name.charCodeAt(0) % AVATAR_C.length];
+    const cardColor = name => AVATAR_C[name.charCodeAt(0) % AVATAR_C.length];
 
-    document.getElementById("interview-container").innerHTML = `
-    <style>
-      .kanban-wrap { display:flex; gap:14px; overflow-x:auto; padding-bottom:20px; }
-      .kanban-col  { min-width:210px; max-width:210px; border-radius:12px; overflow:hidden; flex-shrink:0; }
-      .kanban-head { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
-      .kanban-head-title { font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; }
-      .kanban-count { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,0.35); }
-      .kanban-body  { padding:8px; max-height:480px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
-                      scrollbar-width:thin; scrollbar-color:rgba(0,0,0,0.15) transparent; }
-      .kanban-card  { background:#fff; border-radius:10px; padding:12px; border:1px solid #E2E8F0;
-                      box-shadow:0 1px 3px rgba(0,0,0,0.05); transition:all 0.15s; }
-      .kanban-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.1); }
-      .kanban-card-name { font-size:12px; font-weight:700; color:var(--dark); line-height:1.3; }
-      .kanban-card-id   { font-size:10px; color:var(--muted); margin-top:2px; }
-      .kanban-card-ket  { font-size:10px; color:#B45309; background:#FFFBEB; padding:3px 7px; border-radius:4px; margin-top:6px; }
-      .kanban-card-date { font-size:10px; color:var(--muted); margin-top:5px; display:flex; align-items:center; gap:4px; }
-      .phase-funnel { display:flex; gap:0; margin-bottom:24px; border-radius:12px; overflow:hidden; }
-      .phase-funnel-item { flex:1; padding:14px 10px; text-align:center; position:relative; cursor:default; transition:filter 0.15s; }
-      .phase-funnel-item:hover { filter:brightness(0.95); }
-      .phase-funnel-num { font-size:22px; font-weight:800; color:#fff; line-height:1; }
-      .phase-funnel-lbl { font-size:10px; font-weight:600; color:rgba(255,255,255,0.85); margin-top:3px; }
-      .stat-grad { border-radius:14px; padding:20px; color:#fff; }
-    </style>
-
-    <!-- GRADIENT STAT CARDS -->
-    <div class="stats-grid" style="margin-bottom:20px">
-      <div class="stat-grad" style="background:linear-gradient(135deg,#4F46E5,#7C3AED)">
-        <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Total Pipeline</div>
-        <div style="font-size:32px;font-weight:800;line-height:1">${total}</div>
-        <div style="font-size:12px;opacity:.8;margin-top:6px">kandidat di semua phase</div>
-      </div>
-      <div class="stat-grad" style="background:linear-gradient(135deg,#10B981,#059669)">
-        <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Hired</div>
-        <div style="font-size:32px;font-weight:800;line-height:1">${hired}</div>
-        <div style="font-size:12px;opacity:.8;margin-top:6px">berhasil diterima</div>
-      </div>
-      <div class="stat-grad" style="background:linear-gradient(135deg,#F59E0B,#D97706)">
-        <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Aktif Proses</div>
-        <div style="font-size:32px;font-weight:800;line-height:1">${active}</div>
-        <div style="font-size:12px;opacity:.8;margin-top:6px">masih dalam seleksi</div>
-      </div>
-      <div class="stat-grad" style="background:linear-gradient(135deg,#0EA5E9,#0284C7)">
-        <div style="font-size:12px;font-weight:600;opacity:.85;margin-bottom:10px">Conversion Rate</div>
-        <div style="font-size:32px;font-weight:800;line-height:1">${convPct}%</div>
-        <div style="font-size:12px;opacity:.8;margin-top:6px">dari total pipeline</div>
-      </div>
-    </div>
-
-    <!-- PIPELINE FUNNEL -->
-    <div class="phase-funnel" style="margin-bottom:24px">
-      ${PHASE_ORDER.map(ph => {
-        const cfg = PHASE_CFG[ph] || { color:'#94A3B8', label:ph };
-        const cnt = phaseCounts[ph] || 0;
-        return `<div class="phase-funnel-item" style="background:${cfg.color}">
-          <div class="phase-funnel-num">${cnt}</div>
-          <div class="phase-funnel-lbl">${cfg.label}</div>
-        </div>`;
-      }).join('<div style="width:0;border-left:2px dashed rgba(255,255,255,0.3)"></div>')}
-    </div>
-
-    <!-- SEARCH -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <div class="search-box" style="width:280px">
-        <span>🔍</span>
-        <input type="text" placeholder="Cari nama kandidat..." oninput="phaseSearch(this.value)"/>
-      </div>
-      <span style="font-size:13px;color:var(--muted)">${filtered.length} kandidat ditampilkan</span>
-    </div>
-
-    <!-- KANBAN BOARD -->
-    <div class="kanban-wrap">
-      ${PHASE_ORDER.map(ph => {
-        const cfg = PHASE_CFG[ph] || { color:'#94A3B8', bg:'#F8FAFC', label:ph, icon:'📌' };
-        const cards = byPhase[ph] || [];
-        return `<div class="kanban-col" style="background:${cfg.bg}">
-          <div class="kanban-head" style="background:${cfg.color}">
-            <div class="kanban-head-title" style="color:#fff">${cfg.icon} ${cfg.label}</div>
-            <span class="kanban-count" style="color:#fff">${cards.length}</span>
-          </div>
-          <div class="kanban-body">
-            ${cards.length === 0 ? `<div style="text-align:center;color:#94A3B8;font-size:12px;padding:20px 0">Tidak ada</div>` :
-              cards.map((c,i) => {
+    const board = document.getElementById("kanban-board");
+    if (!board) return;
+    board.innerHTML = PHASE_ORDER.map(ph => {
+      const cfg   = PHASE_CFG[ph] || { color:'#94A3B8', bg:'#F8FAFC', label:ph, icon:'📌' };
+      const cards = byPhase[ph] || [];
+      return `<div class="kanban-col" style="background:${cfg.bg}">
+        <div class="kanban-head" style="background:${cfg.color}">
+          <div class="kanban-head-title" style="color:#fff">${cfg.icon} ${cfg.label}</div>
+          <span class="kanban-count" style="color:#fff">${cards.length}</span>
+        </div>
+        <div class="kanban-body">
+          ${cards.length === 0
+            ? `<div style="text-align:center;color:#94A3B8;font-size:12px;padding:20px 0">Tidak ada</div>`
+            : cards.map(c => {
                 const ini = initials(c.nama);
-                const col = cardColor(c.nama, i);
-                const dateInfo = c.tgl_gabung ? `🎉 Gabung: ${c.tgl_gabung}` :
+                const col = cardColor(c.nama);
+                const dateInfo = c.tgl_gabung    ? `🎉 Gabung: ${c.tgl_gabung}` :
                                  c.tgl_interview ? `🗣 Interview: ${c.tgl_interview}` :
-                                 c.tgl_test ? `📝 Test: ${c.tgl_test}` :
-                                 c.tgl_undang ? `📩 Undang: ${c.tgl_undang}` : "";
+                                 c.tgl_test      ? `📝 Test: ${c.tgl_test}` :
+                                 c.tgl_undang    ? `📩 Undang: ${c.tgl_undang}` : "";
                 return `<div class="kanban-card">
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                     <div style="width:28px;height:28px;border-radius:50%;background:${col};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
@@ -1136,16 +1149,15 @@
                   ${c.ket ? `<div class="kanban-card-ket">⚠ ${c.ket}</div>` : ""}
                 </div>`;
               }).join("")
-            }
-          </div>
-        </div>`;
-      }).join("")}
-    </div>`;
+          }
+        </div>
+      </div>`;
+    }).join("");
   }
 
   function phaseSearch(q) {
     phaseSearchQ = q;
-    renderInterviewPage();
+    renderKanban();
   }
   window.phaseSearch = phaseSearch;
 
