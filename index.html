@@ -968,6 +968,70 @@
     });
   }
 
+  function filterJobs(q) {
+    const ptFilter = (document.getElementById("jobs-filter-pt")||{}).value || "";
+    filteredJobs = jobs.filter(j => {
+      const matchQ  = !q || j.jabatan.toLowerCase().includes(q.toLowerCase()) ||
+                      j.departemen.toLowerCase().includes(q.toLowerCase()) ||
+                      j.bagian.toLowerCase().includes(q.toLowerCase());
+      const matchPT = !ptFilter || j.pt === ptFilter;
+      return matchQ && matchPT;
+    });
+    jobsPage = 1;
+    renderJobsTable();
+  }
+
+  function renderJobsTable() {
+    const total  = filteredJobs.length;
+    const start  = (jobsPage - 1) * JOBS_PAGE_SIZE;
+    const end    = Math.min(start + JOBS_PAGE_SIZE, total);
+    const paged  = filteredJobs.slice(start, end);
+
+    const pct = (n,t) => t ? Math.round(n/t*100) : 0;
+    const bar = (n,t,col) => `<div style="background:#E2E8F0;border-radius:4px;height:8px;margin-top:4px">
+      <div style="width:${pct(n,t)}%;background:${col};border-radius:4px;height:8px"></div></div>`;
+    const statusCls = s => s==="Open" ? "badge-screening" : "badge-offer";
+
+    const tbody = document.getElementById("jobs-tbody");
+    if (tbody) tbody.innerHTML = paged.map(j => `<tr>
+      <td><div style="font-weight:600;color:var(--dark)">${j.jabatan}</div>
+          <div style="font-size:11px;color:var(--muted)">${j.bagian}</div></td>
+      <td style="font-size:13px">${j.departemen}</td>
+      <td><span class="source-tag">${j.pt}</span></td>
+      <td style="font-size:12px;color:var(--muted);max-width:140px">${j.kualifikasi}</td>
+      <td style="text-align:center;font-weight:700">${j.kebutuhan}</td>
+      <td style="text-align:center;color:var(--success);font-weight:600">${j.fulfillment}</td>
+      <td style="text-align:center;color:var(--warning);font-weight:600">${j.outstanding}</td>
+      <td>${bar(j.fulfillment,j.kebutuhan,"#10B981")}
+          <span style="font-size:10px;color:var(--muted)">${pct(j.fulfillment,j.kebutuhan)}%</span></td>
+      <td><span class="badge ${statusCls(j.status)}">${j.status}</span></td>
+    </tr>`).join("");
+
+    const infoEl = document.getElementById("jobs-pagination-info");
+    if (infoEl) infoEl.textContent = total === 0 ? "Tidak ada lowongan" : `Menampilkan ${start+1}–${end} dari ${total} lowongan`;
+
+    const countEl = document.getElementById("jobs-count");
+    if (countEl) countEl.textContent = `${total} posisi`;
+
+    const totalPages = Math.ceil(total / JOBS_PAGE_SIZE);
+    const btnsEl = document.getElementById("jobs-page-btns");
+    if (!btnsEl) return;
+    let html = `<button class="page-btn" onclick="goJobsPage(${jobsPage-1})" ${jobsPage===1?"disabled":""} style="${jobsPage===1?"opacity:.4;cursor:default":""}">‹</button>`;
+    const rs = Math.max(1, jobsPage-2), re = Math.min(totalPages, jobsPage+2);
+    if (rs > 1) html += `<button class="page-btn" onclick="goJobsPage(1)">1</button>${rs>2?'<span style="padding:0 4px;color:var(--muted)">…</span>':""}`;
+    for (let p = rs; p <= re; p++) html += `<button class="page-btn ${p===jobsPage?"active":""}" onclick="goJobsPage(${p})">${p}</button>`;
+    if (re < totalPages) html += `${re<totalPages-1?'<span style="padding:0 4px;color:var(--muted)">…</span>':""}<button class="page-btn" onclick="goJobsPage(${totalPages})">${totalPages}</button>`;
+    html += `<button class="page-btn" onclick="goJobsPage(${jobsPage+1})" ${jobsPage===totalPages||totalPages===0?"disabled":""} style="${jobsPage===totalPages||totalPages===0?"opacity:.4;cursor:default":""}">›</button>`;
+    btnsEl.innerHTML = html;
+  }
+
+  function goJobsPage(p) {
+    const totalPages = Math.ceil(filteredJobs.length / JOBS_PAGE_SIZE);
+    if (p < 1 || p > totalPages) return;
+    jobsPage = p;
+    renderJobsTable();
+  }
+
   // ── INISIALISASI ───────────────────────────────────────────
   // loadFromSheets() dipanggil setelah login berhasil (via doLogin)
 
@@ -999,6 +1063,9 @@
 
   // ── JOBS DATA ──────────────────────────────────────────────
   let jobs = [];
+  let filteredJobs = [];
+  let jobsPage = 1;
+  const JOBS_PAGE_SIZE = 10;
   let chartJobDept = null, chartJobPT = null;
 
   async function loadJobs() {
@@ -1104,30 +1171,36 @@
       <!-- TABEL LOWONGAN -->
       <div class="table-card">
         <div class="table-header">
-          <div><div class="card-title">Daftar Lowongan</div><div class="card-subtitle">${jobs.length} posisi terbuka</div></div>
+          <div><div class="card-title">Daftar Lowongan</div><div class="card-subtitle" id="jobs-count">${jobs.length} posisi terbuka</div></div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="jobs-search" placeholder="Cari jabatan, departemen..." oninput="filterJobs(this.value)"/>
+            </div>
+            <select id="jobs-filter-pt" onchange="filterJobs(document.getElementById('jobs-search').value)"
+              style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--dark);background:var(--bg);cursor:pointer">
+              <option value="">Semua PT</option>
+              ${[...new Set(jobs.map(j=>j.pt).filter(Boolean))].map(pt=>`<option value="${pt}">${pt}</option>`).join("")}
+            </select>
+          </div>
         </div>
         <table>
           <thead><tr>
             <th>Jabatan</th><th>Departemen</th><th>PT</th><th>Kualifikasi</th>
             <th>Butuh</th><th>Terpenuhi</th><th>Outstanding</th><th style="width:140px">Progress</th><th>Status</th>
           </tr></thead>
-          <tbody>
-            ${jobs.map(j => `<tr>
-              <td><div style="font-weight:600;color:var(--dark)">${j.jabatan}</div>
-                  <div style="font-size:11px;color:var(--muted)">${j.bagian}</div></td>
-              <td style="font-size:13px">${j.departemen}</td>
-              <td><span class="source-tag">${j.pt}</span></td>
-              <td style="font-size:12px;color:var(--muted);max-width:140px">${j.kualifikasi}</td>
-              <td style="text-align:center;font-weight:700">${j.kebutuhan}</td>
-              <td style="text-align:center;color:var(--success);font-weight:600">${j.fulfillment}</td>
-              <td style="text-align:center;color:var(--warning);font-weight:600">${j.outstanding}</td>
-              <td>${bar(j.fulfillment,j.kebutuhan,"#10B981")}
-                  <span style="font-size:10px;color:var(--muted)">${pct(j.fulfillment,j.kebutuhan)}%</span></td>
-              <td><span class="badge ${statusCls(j.status)}">${j.status}</span></td>
-            </tr>`).join("")}
-          </tbody>
+          <tbody id="jobs-tbody"></tbody>
         </table>
+        <div class="pagination">
+          <p id="jobs-pagination-info">Menampilkan —</p>
+          <div class="page-btns" id="jobs-page-btns"></div>
+        </div>
       </div>`;
+
+    // Init table
+    filteredJobs = jobs;
+    jobsPage = 1;
+    renderJobsTable();
 
     // Render charts
     if (chartJobDept) chartJobDept.destroy();
