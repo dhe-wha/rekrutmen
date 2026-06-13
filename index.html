@@ -415,9 +415,9 @@
       <span class="icon">👤</span> Kandidat
       <span class="badge-count" id="badge-kandidat">—</span>
     </div>
-    <div class="nav-item">
+    <div class="nav-item" data-page="lowongan" onclick="switchPage('lowongan')">
       <span class="icon">💼</span> Lowongan
-      <span class="badge-count">12</span>
+      <span class="badge-count" id="badge-lowongan">—</span>
     </div>
     <div class="nav-item">
       <span class="icon">📅</span> Interview
@@ -612,6 +612,14 @@
     </div>
 
   </div><!-- end page-kandidat -->
+
+  <!-- PAGE: LOWONGAN -->
+  <div class="content" id="page-lowongan" style="display:none">
+    <div id="jobs-container">
+      <div style="color:var(--muted);font-size:13px;padding:20px 0">⏳ Memuat data lowongan...</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -977,13 +985,182 @@
     const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
     if (activeNav) activeNav.classList.add("active");
 
-    document.getElementById("page-dashboard").style.display = page === "dashboard" ? "block" : "none";
-    document.getElementById("page-kandidat").style.display  = page === "kandidat"  ? "block" : "none";
+    ["dashboard","kandidat","lowongan"].forEach(p => {
+      const el = document.getElementById(`page-${p}`);
+      if (el) el.style.display = p === page ? "block" : "none";
+    });
 
-    const titles = { dashboard: "Dashboard Rekrutmen", kandidat: "Data Kandidat" };
+    const titles = { dashboard:"Dashboard Rekrutmen", kandidat:"Data Kandidat", lowongan:"Lowongan Kerja" };
     document.getElementById("topbar-title").textContent = titles[page] || page;
 
     if (page === "dashboard") renderProgressDashboard();
+    if (page === "lowongan") { if (!jobs.length) loadJobs(); else renderJobsPage(); }
+  }
+
+  // ── JOBS DATA ──────────────────────────────────────────────
+  let jobs = [];
+  let chartJobDept = null, chartJobPT = null;
+
+  async function loadJobs() {
+    try {
+      const res  = await fetch(GVIZ("jobs"));
+      const text = await res.text();
+      const rows = parseCSV(text);
+      jobs = rows.filter(r => r.jabatan).map(r => ({
+        open_id:    r.open_id    || "",
+        pt:         r.pt         || "",
+        nomor:      r.nomor_permintaan || "",
+        dep:        r.dep        || "",
+        departemen: r.departemen || "",
+        bagian:     r.bagian     || "",
+        jabatan:    r.jabatan    || "",
+        gender:     r.gender     || "",
+        umur:       r.umur       || "",
+        kebutuhan:  parseInt(r.kebutuhan)   || 0,
+        tgl:        r.tgl_diminta || "",
+        alasan:     r.alasan_permintaan || "",
+        kualifikasi:r.kualifikasi || "-",
+        fulfillment:parseInt(r.fulfillment) || 0,
+        outstanding:parseInt(r.outstanding) || 0,
+        status:     r.cek_status || "Open",
+      }));
+      const badgeEl = document.getElementById("badge-lowongan");
+      if (badgeEl) badgeEl.textContent = jobs.length;
+      renderJobsPage();
+    } catch(e) {
+      document.getElementById("jobs-container").innerHTML = `<div style="color:var(--danger)">⚠ Gagal memuat data lowongan.</div>`;
+      console.error(e);
+    }
+  }
+
+  function renderJobsPage() {
+    if (!jobs.length) return;
+    const totalKebutuhan  = jobs.reduce((s,j) => s + j.kebutuhan, 0);
+    const totalFulfill    = jobs.reduce((s,j) => s + j.fulfillment, 0);
+    const totalOutstanding= jobs.reduce((s,j) => s + j.outstanding, 0);
+
+    // Per departemen
+    const deptMap = {};
+    jobs.forEach(j => {
+      const d = j.departemen || "Lainnya";
+      if (!deptMap[d]) deptMap[d] = { kebutuhan:0, fulfillment:0, outstanding:0 };
+      deptMap[d].kebutuhan   += j.kebutuhan;
+      deptMap[d].fulfillment += j.fulfillment;
+      deptMap[d].outstanding += j.outstanding;
+    });
+    const depts = Object.entries(deptMap).sort((a,b) => b[1].kebutuhan - a[1].kebutuhan);
+
+    // Per PT
+    const ptMap = {};
+    jobs.forEach(j => { const p = j.pt||"Lain"; ptMap[p]=(ptMap[p]||0)+j.kebutuhan; });
+
+    const pct = (n,t) => t ? Math.round(n/t*100) : 0;
+    const bar = (n,t,col) => `<div style="background:#E2E8F0;border-radius:4px;height:8px;margin-top:4px">
+      <div style="width:${pct(n,t)}%;background:${col};border-radius:4px;height:8px"></div></div>`;
+
+    const statusCls = s => s==="Open" ? "badge-screening" : "badge-offer";
+
+    document.getElementById("jobs-container").innerHTML = `
+      <!-- STAT CARDS -->
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Total Lowongan</span><div class="stat-icon blue">📋</div></div>
+          <div class="stat-value">${jobs.length}</div>
+          <div class="stat-footer"><span class="stat-period">posisi dibuka</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Total Kebutuhan</span><div class="stat-icon yellow">🎯</div></div>
+          <div class="stat-value">${totalKebutuhan}</div>
+          <div class="stat-footer"><span class="stat-period">orang dibutuhkan</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Terpenuhi</span><div class="stat-icon green">✅</div></div>
+          <div class="stat-value">${totalFulfill}</div>
+          <div class="stat-footer"><span class="stat-period">${pct(totalFulfill,totalKebutuhan)}% dari kebutuhan</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Outstanding</span><div class="stat-icon red">⏳</div></div>
+          <div class="stat-value">${totalOutstanding}</div>
+          <div class="stat-footer"><span class="stat-period">masih dibutuhkan</span></div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="charts-row" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Kebutuhan vs Terpenuhi per Departemen</div></div>
+          </div>
+          <canvas id="chartJobDept" height="160"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Distribusi Kebutuhan per PT</div></div>
+          </div>
+          <canvas id="chartJobPT" height="160"></canvas>
+        </div>
+      </div>
+
+      <!-- TABEL LOWONGAN -->
+      <div class="table-card">
+        <div class="table-header">
+          <div><div class="card-title">Daftar Lowongan</div><div class="card-subtitle">${jobs.length} posisi terbuka</div></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Jabatan</th><th>Departemen</th><th>PT</th><th>Kualifikasi</th>
+            <th>Butuh</th><th>Terpenuhi</th><th>Outstanding</th><th style="width:140px">Progress</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            ${jobs.map(j => `<tr>
+              <td><div style="font-weight:600;color:var(--dark)">${j.jabatan}</div>
+                  <div style="font-size:11px;color:var(--muted)">${j.bagian}</div></td>
+              <td style="font-size:13px">${j.departemen}</td>
+              <td><span class="source-tag">${j.pt}</span></td>
+              <td style="font-size:12px;color:var(--muted);max-width:140px">${j.kualifikasi}</td>
+              <td style="text-align:center;font-weight:700">${j.kebutuhan}</td>
+              <td style="text-align:center;color:var(--success);font-weight:600">${j.fulfillment}</td>
+              <td style="text-align:center;color:var(--warning);font-weight:600">${j.outstanding}</td>
+              <td>${bar(j.fulfillment,j.kebutuhan,"#10B981")}
+                  <span style="font-size:10px;color:var(--muted)">${pct(j.fulfillment,j.kebutuhan)}%</span></td>
+              <td><span class="badge ${statusCls(j.status)}">${j.status}</span></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+
+    // Render charts
+    if (chartJobDept) chartJobDept.destroy();
+    if (chartJobPT)   chartJobPT.destroy();
+
+    chartJobDept = new Chart(document.getElementById("chartJobDept"), {
+      type: "bar",
+      data: {
+        labels: depts.map(d=>d[0]),
+        datasets: [
+          { label:"Kebutuhan",  data: depts.map(d=>d[1].kebutuhan),  backgroundColor:"#4F46E5", borderRadius:4 },
+          { label:"Terpenuhi",  data: depts.map(d=>d[1].fulfillment),backgroundColor:"#10B981", borderRadius:4 },
+          { label:"Outstanding",data: depts.map(d=>d[1].outstanding),backgroundColor:"#F59E0B", borderRadius:4 },
+        ]
+      },
+      options: {
+        responsive:true,
+        plugins:{ legend:{ position:"top", labels:{ font:{size:11} } } },
+        scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ grid:{color:"#F1F5F9"} } }
+      }
+    });
+
+    chartJobPT = new Chart(document.getElementById("chartJobPT"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(ptMap),
+        datasets:[{ data: Object.values(ptMap), backgroundColor:["#4F46E5","#0EA5E9","#10B981"], borderWidth:0, hoverOffset:4 }]
+      },
+      options: {
+        responsive:true, cutout:"65%",
+        plugins:{ legend:{ position:"right", labels:{ boxWidth:12, font:{size:12}, padding:16 } } }
+      }
+    });
   }
 
   function renderProgressDashboard() {
