@@ -496,12 +496,12 @@
       </div>
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-label">Sarjana (S1)</span>
-          <div class="stat-icon red">❌</div>
+          <span class="stat-label">Sudah Bekerja</span>
+          <div class="stat-icon blue">💼</div>
         </div>
         <div class="stat-value" id="stat-rejected">—</div>
         <div class="stat-footer">
-          <span class="stat-period">lulusan sarjana</span>
+          <span class="stat-period">sudah jadi karyawan</span>
         </div>
       </div>
     </div>
@@ -763,7 +763,8 @@
           no_telp:     r.no_telp || "",
           kabupaten:   r.kabupaten || "",
           pengalaman:  r.pengalaman || "",
-          foto:        r.foto || "",
+          foto:             r.foto || "",
+          status_kandidat:  r.status_kandidat || "",
           tgl:         label, dateObj,
           color:       AVATAR_COLORS[i % AVATAR_COLORS.length],
         };
@@ -781,14 +782,14 @@
 
   // ── UPDATE STAT CARDS ──────────────────────────────────────
   function updateStats() {
-    const total  = candidates.length;
-    const open   = candidates.filter(c => c.status === "open").length;
-    const closed = candidates.filter(c => c.status === "close").length;
-    const s1     = candidates.filter(c => (c.pendidikan||"").toUpperCase() === "S1").length;
+    const total      = candidates.length;
+    const open       = candidates.filter(c => c.status === "open").length;
+    const closed     = candidates.filter(c => c.status === "close").length;
+    const sudahKerja = candidates.filter(c => c.status_kandidat === "Sudah Bekerja").length;
     document.getElementById("stat-total").textContent    = total;
     document.getElementById("stat-proses").textContent   = open;
     document.getElementById("stat-hired").textContent    = closed;
-    document.getElementById("stat-rejected").textContent = s1;
+    document.getElementById("stat-rejected").textContent = sudahKerja;
     document.getElementById("count-kandidat").textContent = total;
 
     // Pipeline — pakai departemen terbanyak
