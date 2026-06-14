@@ -1459,6 +1459,16 @@
     });
   }
 
+  let recapJobs = [];
+  async function loadRecapJobs() {
+    try {
+      const res  = await fetch(GVIZ("recap_jobs"));
+      const text = await res.text();
+      recapJobs  = parseCSV(text).filter(r => r.jabatan);
+    } catch(e) { recapJobs = []; }
+    renderProgressDashboard();
+  }
+
   function renderProgressDashboard() {
     if (!candidates.length) return;
     const open   = candidates.filter(c => c.status === "open").length;
