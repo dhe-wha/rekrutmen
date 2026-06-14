@@ -714,41 +714,37 @@
   let currentPage = 1;
   const PAGE_SIZE = 10;
 
+  // ── PARSE TANGGAL (global) ─────────────────────────────────
+  function parseTgl(val) {
+    if (!val || String(val).trim() === "") return { dateObj: null, label: "-" };
+    const str = String(val).trim();
+    const MON = {jan:0,feb:1,mar:2,apr:3,may:4,mei:4,jun:5,jul:6,agu:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
+    const monMatch = str.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+    if (monMatch) {
+      const day  = parseInt(monMatch[1]);
+      const mIdx = MON[monMatch[2].toLowerCase()];
+      const year = monMatch[3].length === 2 ? 2000 + parseInt(monMatch[3]) : parseInt(monMatch[3]);
+      if (mIdx !== undefined) {
+        const d = new Date(year, mIdx, day);
+        if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
+      }
+    }
+    const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) {
+      const d = new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+      if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
+    }
+    const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (ymd) {
+      const d = new Date(+ymd[1], +ymd[2]-1, +ymd[3]);
+      if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
+    }
+    return { dateObj: null, label: str };
+  }
+
   // ── FETCH DATA DARI GOOGLE SHEETS ─────────────────────────
   async function loadFromSheets() {
     const statusEl = document.getElementById("data-status");
-
-    function parseTgl(val) {
-      if (!val || String(val).trim() === "") return { dateObj: null, label: "-" };
-      const str = String(val).trim();
-      const MON = {jan:0,feb:1,mar:2,apr:3,may:4,mei:4,jun:5,jul:6,agu:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
-      // Format D-Mon-YY atau D-Mon-YYYY (misal: "28-May-23", "1-Nov-2022", "14-May-22")
-      const monMatch = str.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
-      if (monMatch) {
-        const day  = parseInt(monMatch[1]);
-        const mIdx = MON[monMatch[2].toLowerCase()];
-        const year = monMatch[3].length === 2 ? 2000 + parseInt(monMatch[3]) : parseInt(monMatch[3]);
-        if (mIdx !== undefined) {
-          const d = new Date(year, mIdx, day);
-          if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
-        }
-      }
-      // Format DD/MM/YYYY atau DD-MM-YYYY
-      const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-      if (dmy) {
-        const d = new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
-        if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
-      }
-      // Format YYYY-MM-DD
-      const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (ymd) {
-        const d = new Date(+ymd[1], +ymd[2]-1, +ymd[3]);
-        if (!isNaN(d)) return { dateObj: d, label: d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" }) };
-      }
-      // Tampilkan nilai asli jika tidak bisa di-parse
-      return { dateObj: null, label: str };
-    }
-
     try {
       const res  = await fetch(GVIZ("candidate"));
       const text = await res.text();
