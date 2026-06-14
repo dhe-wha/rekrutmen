@@ -1167,12 +1167,17 @@
 
   function filterJobs(q) {
     const ptFilter = (document.getElementById("jobs-filter-pt")||{}).value || "";
-    filteredJobs = [...jobs].reverse().filter(j => {
+    filteredJobs = jobs.filter(j => {
       const matchQ  = !q || j.jabatan.toLowerCase().includes(q.toLowerCase()) ||
                       j.departemen.toLowerCase().includes(q.toLowerCase()) ||
                       j.bagian.toLowerCase().includes(q.toLowerCase());
       const matchPT = !ptFilter || j.pt === ptFilter;
       return matchQ && matchPT;
+    }).sort((a,b) => {
+      if (a.tglDateObj && b.tglDateObj) return b.tglDateObj - a.tglDateObj;
+      if (a.tglDateObj) return -1;
+      if (b.tglDateObj) return 1;
+      return 0;
     });
     jobsPage = 1;
     renderJobsTable();
@@ -1191,11 +1196,11 @@
 
     const tbody = document.getElementById("jobs-tbody");
     if (tbody) tbody.innerHTML = paged.map(j => `<tr>
+      <td><span class="source-tag">${j.pt}</span></td>
+      <td style="font-size:13px">${j.departemen}</td>
       <td><div style="font-weight:600;color:var(--dark)">${j.jabatan}</div>
           <div style="font-size:11px;color:var(--muted)">${j.bagian}</div></td>
-      <td style="font-size:13px">${j.departemen}</td>
-      <td><span class="source-tag">${j.pt}</span></td>
-      <td style="font-size:12px;color:var(--muted);max-width:140px">${j.kualifikasi}</td>
+      <td style="font-size:12px;white-space:nowrap">${j.tgl || "-"}</td>
       <td style="text-align:center;font-weight:700">${j.kebutuhan}</td>
       <td style="text-align:center;color:var(--success);font-weight:600">${j.fulfillment}</td>
       <td style="text-align:center;color:var(--warning);font-weight:600">${j.outstanding}</td>
@@ -1276,24 +1281,29 @@
       const res  = await fetch(GVIZ("jobs"));
       const text = await res.text();
       const rows = parseCSV(text);
-      jobs = rows.filter(r => r.jabatan).map(r => ({
-        open_id:    r.open_id    || "",
-        pt:         r.pt         || "",
-        nomor:      r.nomor_permintaan || "",
-        dep:        r.dep        || "",
-        departemen: r.departemen || "",
-        bagian:     r.bagian     || "",
-        jabatan:    r.jabatan    || "",
-        gender:     r.gender     || "",
-        umur:       r.umur       || "",
-        kebutuhan:  parseInt(r.kebutuhan)   || 0,
-        tgl:        r.tgl_diminta || "",
-        alasan:     r.alasan_permintaan || "",
-        kualifikasi:r.kualifikasi || "-",
-        fulfillment:parseInt(r.fulfillment) || 0,
-        outstanding:parseInt(r.outstanding) || 0,
-        status:     r.cek_status || "Open",
-      }));
+      jobs = rows.filter(r => r.jabatan).map(r => {
+        const tglRaw = r.tgl_diminta || "";
+        const { dateObj: tglDateObj, label: tglLabel } = parseTgl(tglRaw);
+        return {
+          open_id:    r.open_id    || "",
+          pt:         r.pt         || "",
+          nomor:      r.nomor_permintaan || "",
+          dep:        r.dep        || "",
+          departemen: r.departemen || "",
+          bagian:     r.bagian     || "",
+          jabatan:    r.jabatan    || "",
+          gender:     r.gender     || "",
+          umur:       r.umur       || "",
+          kebutuhan:  parseInt(r.kebutuhan)   || 0,
+          tgl:        tglLabel,
+          tglDateObj,
+          alasan:     r.alasan_permintaan || "",
+          kualifikasi:r.kualifikasi || "-",
+          fulfillment:parseInt(r.fulfillment) || 0,
+          outstanding:parseInt(r.outstanding) || 0,
+          status:     r.cek_status || "Open",
+        };
+      });
       const badgeEl = document.getElementById("badge-lowongan");
       if (badgeEl) badgeEl.textContent = jobs.length;
       renderJobsPage();
@@ -1389,7 +1399,7 @@
         </div>
         <table>
           <thead><tr>
-            <th>Jabatan</th><th>Departemen</th><th>PT</th><th>Kualifikasi</th>
+            <th>PT</th><th>Departemen</th><th>Jabatan</th><th>Tgl Permintaan</th>
             <th>Butuh</th><th>Terpenuhi</th><th>Outstanding</th><th style="width:140px">Progress</th><th>Status</th>
           </tr></thead>
           <tbody id="jobs-tbody"></tbody>
@@ -1400,8 +1410,13 @@
         </div>
       </div>`;
 
-    // Init table — urut dari row terbaru (terbalik urutan sheet)
-    filteredJobs = [...jobs].reverse();
+    // Init table — urut dari tgl_diminta terbaru
+    filteredJobs = [...jobs].sort((a,b) => {
+      if (a.tglDateObj && b.tglDateObj) return b.tglDateObj - a.tglDateObj;
+      if (a.tglDateObj) return -1;
+      if (b.tglDateObj) return 1;
+      return 0;
+    });
     jobsPage = 1;
     renderJobsTable();
 
