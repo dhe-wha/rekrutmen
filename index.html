@@ -1680,14 +1680,21 @@
     }
   }
 
-  function renderPenempatanPage() {
+  function filterPenempatan(q) {
     const data = window._fulfillments || [];
-    const container = document.getElementById("penempatan-container");
-    if (!data.length) {
-      container.innerHTML = `<div style="color:var(--muted);padding:20px 0">Belum ada data penempatan.</div>`;
-      return;
-    }
-    const rows = data.map(f => `
+    const filtered = q
+      ? data.filter(f => {
+          const s = q.toLowerCase();
+          return (f.nama||"").toLowerCase().includes(s) ||
+                 (f.jabatan||"").toLowerCase().includes(s) ||
+                 (f.bagian||"").toLowerCase().includes(s) ||
+                 (f.departemen||f.dep||"").toLowerCase().includes(s);
+        })
+      : data;
+    const tbody = document.getElementById("penempatan-tbody");
+    const countEl = document.getElementById("penempatan-count");
+    if (countEl) countEl.textContent = `${filtered.length} karyawan ditempatkan`;
+    if (tbody) tbody.innerHTML = filtered.map(f => `
       <tr>
         <td>${f.nama || "-"}</td>
         <td style="font-size:12px;color:var(--muted)">${f.nomor_berkas || "-"}</td>
@@ -1698,13 +1705,30 @@
         <td style="white-space:nowrap">${f.tgl_gabung || "-"}</td>
         <td><span class="badge badge-screening">${f.alasan || "-"}</span></td>
       </tr>`).join("");
+  }
+
+  function renderPenempatanPage() {
+    const data = window._fulfillments || [];
+    const container = document.getElementById("penempatan-container");
+    if (!data.length) {
+      container.innerHTML = `<div style="color:var(--muted);padding:20px 0">Belum ada data penempatan.</div>`;
+      return;
+    }
     container.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div>
-          <h2 style="font-size:18px;font-weight:700;color:var(--text)">Data Penempatan</h2>
-          <p style="font-size:13px;color:var(--muted);margin-top:2px">${data.length} karyawan ditempatkan</p>
+          <h2 style="font-size:18px;font-weight:700;color:var(--dark)">Data Penempatan</h2>
+          <p id="penempatan-count" style="font-size:13px;color:var(--muted);margin-top:2px">${data.length} karyawan ditempatkan</p>
         </div>
-        <button onclick="loadPenempatan()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer;font-size:13px">🔄 Refresh</button>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="search-box" style="width:260px">
+            <span>🔍</span>
+            <input type="text" placeholder="Cari nama, jabatan, bagian, departemen..."
+              oninput="filterPenempatan(this.value)"
+              style="border:none;background:transparent;font-size:13px;color:var(--dark);outline:none;width:100%"/>
+          </div>
+          <button onclick="loadPenempatan()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--dark);cursor:pointer;font-size:13px">🔄 Refresh</button>
+        </div>
       </div>
       <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -1720,8 +1744,18 @@
               <th style="padding:12px 14px;text-align:left;font-weight:600;color:var(--text)">Alasan</th>
             </tr>
           </thead>
-          <tbody>
-            ${rows}
+          <tbody id="penempatan-tbody">
+            ${data.map(f => `
+              <tr>
+                <td>${f.nama || "-"}</td>
+                <td style="font-size:12px;color:var(--muted)">${f.nomor_berkas || "-"}</td>
+                <td><span style="font-weight:600;color:var(--primary)">${f.pt || "-"}</span></td>
+                <td>${f.departemen || f.dep || "-"}</td>
+                <td>${f.bagian || "-"}</td>
+                <td>${f.jabatan || "-"}</td>
+                <td style="white-space:nowrap">${f.tgl_gabung || "-"}</td>
+                <td><span class="badge badge-screening">${f.alasan || "-"}</span></td>
+              </tr>`).join("")}
           </tbody>
         </table>
       </div>`;
