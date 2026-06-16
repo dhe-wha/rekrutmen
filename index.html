@@ -1015,6 +1015,7 @@
           tgl_gabung:   r.tgl_gabung       || "",
           phase:        (r.Phase || r.phase || "Candidate").trim(),
           ket:          r.Keterangan       || "",
+          jabatan:      r.jabatan          || "",
         };
       });
       const badgeEl = document.getElementById("badge-interview");
@@ -1101,7 +1102,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <div class="search-box" style="width:280px">
           <span>🔍</span>
-          <input id="phase-search-input" type="text" placeholder="Cari nama kandidat..."
+          <input id="phase-search-input" type="text" placeholder="Cari nama / jabatan..."
             oninput="window.phaseSearch(this.value)" autocomplete="off"/>
         </div>
         <span id="phase-count-label" style="font-size:13px;color:var(--muted)">${total} kandidat ditampilkan</span>
@@ -1117,7 +1118,7 @@
 
   function renderKanban() {
     const q = phaseSearchQ.toLowerCase();
-    const filtered = q ? phases.filter(p => p.nama.toLowerCase().includes(q) || p.nomor.toLowerCase().includes(q)) : phases;
+    const filtered = q ? phases.filter(p => p.nama.toLowerCase().includes(q) || p.nomor.toLowerCase().includes(q) || p.jabatan.toLowerCase().includes(q)) : phases;
     const byPhase = {};
     PHASE_ORDER.forEach(ph => byPhase[ph] = []);
     filtered.forEach(p => { if (byPhase[p.phase]) byPhase[p.phase].push(p); });
@@ -1538,7 +1539,7 @@
               <line x1="58" y1="17" x2="58" y2="27" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
               <line x1="53" y1="22" x2="63" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
-            <div style="font-size:20px;font-weight:700;color:#6366F1;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Open Posisi</div>
+            <div style="font-size:11px;font-weight:700;color:#6366F1;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Open Posisi</div>
             <div style="font-size:42px;font-weight:800;color:#1E293B;line-height:1">${openPosisi}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:5px">jabatan dibutuhkan</div>
           </div>
@@ -1554,7 +1555,7 @@
               <line x1="13" y1="40" x2="20" y2="40" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
               <line x1="60" y1="40" x2="67" y2="40" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
-            <div style="font-size:20px;font-weight:700;color:#D97706;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Kebutuhan</div>
+            <div style="font-size:11px;font-weight:700;color:#D97706;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Kebutuhan</div>
             <div style="font-size:42px;font-weight:800;color:#1E293B;line-height:1">${totalKebutuhan}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:5px">total kebutuhan karyawan</div>
           </div>
@@ -1566,7 +1567,7 @@
               <path d="M40 18L58 27v14c0 11-8 20-18 23C30 61 22 52 22 41V27z" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
               <path d="M31 40l7 8 13-14" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <div style="font-size:20px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Terpenuhi</div>
+            <div style="font-size:11px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Terpenuhi</div>
             <div style="font-size:42px;font-weight:800;color:#10B981;line-height:1">${totalTerpenuhi}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:5px">${totalKebutuhan ? Math.round(totalTerpenuhi/totalKebutuhan*100) : 0}% dari kebutuhan</div>
           </div>
@@ -1582,7 +1583,7 @@
               <line x1="62" y1="15" x2="62" y2="23" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
               <circle cx="62" cy="26" r="1.5" fill="white"/>
             </svg>
-            <div style="font-size:20px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Kekurangan</div>
+            <div style="font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Kekurangan</div>
             <div style="font-size:42px;font-weight:800;color:#EF4444;line-height:1">${totalKekurangan}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:5px">masih dibutuhkan</div>
           </div>
