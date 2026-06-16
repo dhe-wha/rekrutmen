@@ -477,7 +477,7 @@
     </div>
 
     <!-- STATS -->
-    <div class="stats-grid">
+    <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
       <div class="stat-card">
         <div class="stat-header">
           <span class="stat-label">Total Pelamar</span>
@@ -500,12 +500,12 @@
       </div>
       <div class="stat-card">
         <div class="stat-header">
-          <span class="stat-label">Status Close</span>
-          <div class="stat-icon green">✅</div>
+          <span class="stat-label">Proses Rekrut</span>
+          <div class="stat-icon" style="background:#F0F9FF">🔄</div>
         </div>
-        <div class="stat-value" id="stat-hired">—</div>
+        <div class="stat-value" id="stat-proses-rekrut" style="color:#0EA5E9">—</div>
         <div class="stat-footer">
-          <span class="stat-period">kandidat selesai</span>
+          <span class="stat-period">sedang diproses</span>
         </div>
       </div>
       <div class="stat-card">
@@ -516,6 +516,16 @@
         <div class="stat-value" id="stat-rejected">—</div>
         <div class="stat-footer">
           <span class="stat-period">sudah jadi karyawan</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header">
+          <span class="stat-label">Status Close</span>
+          <div class="stat-icon green">✅</div>
+        </div>
+        <div class="stat-value" id="stat-hired">—</div>
+        <div class="stat-footer">
+          <span class="stat-period">kandidat selesai</span>
         </div>
       </div>
     </div>
@@ -814,10 +824,12 @@
   function updateStats() {
     const total      = candidates.length;
     const open       = candidates.filter(c => c.status === "open").length;
+    const proses     = candidates.filter(c => c.status === "proses").length;
     const closed     = candidates.filter(c => c.status.includes("close")).length;
     const sudahKerja = candidates.filter(c => c.status_kandidat === "Sudah Bekerja").length;
     document.getElementById("stat-total").textContent    = total;
     document.getElementById("stat-proses").textContent   = open;
+    document.getElementById("stat-proses-rekrut").textContent = proses;
     document.getElementById("stat-hired").textContent    = closed;
     document.getElementById("stat-rejected").textContent = sudahKerja;
     document.getElementById("count-kandidat").textContent = total;
@@ -846,6 +858,7 @@
 
   const statusMap = {
     open:          { label:"Open",          cls:"badge-screening" },
+    proses:        { label:"Proses",        cls:"badge-interview" },
     close:         { label:"Close",         cls:"badge-rejected"  },
     close_filled:  { label:"Close Filled",  cls:"badge-hired"     },
     close_period:  { label:"Close Period",  cls:"badge-test"      },
