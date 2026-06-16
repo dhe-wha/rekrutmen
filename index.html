@@ -802,6 +802,7 @@
       const badgeEl = document.getElementById("badge-kandidat");
       if (badgeEl) badgeEl.textContent = candidates.length;
       updateStats(); renderTable(displayCandidates); renderCharts();
+      if (recapJobs.length) renderRecapJobsTable("", 1);
       loadRecapJobs();
     } catch(e) {
       if (statusEl) { statusEl.textContent = "⚠ Gagal memuat data dari Google Sheets"; statusEl.style.background="#FEF2F2"; statusEl.style.borderColor="#FCA5A5"; statusEl.style.color="#B91C1C"; }
@@ -1652,8 +1653,8 @@
             const butuh  = parseInt(r.kebutuhan)  || 0;
             const terisi = parseInt(r.terpenuhi)  || 0;
             const kurang = parseInt(r.kekurangan) || (butuh - terisi);
-            const recapId = r.recap_jobs_id || "";
-            const matchCount = recapId ? candidates.filter(c => c.progress === recapId).length : 0;
+            const recapId = (r.recap_jobs_id || r['recap_jobs id'] || r._col0 || "").trim();
+            const matchCount = recapId ? candidates.filter(c => (c.progress || "").trim() === recapId).length : 0;
             const btnHtml = matchCount > 0
               ? `<button onclick="showRecapCandidates('${recapId}','${(r.jabatan||'').replace(/'/g,"\\'")}','${(r.departemen||'').replace(/'/g,"\\'")}')
                   " style="padding:4px 10px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">
@@ -1686,7 +1687,7 @@
   }
 
   function showRecapCandidates(recapId, jabatan, departemen) {
-    const matched = candidates.filter(c => c.progress === recapId);
+    const matched = candidates.filter(c => (c.progress || "").trim() === recapId.trim());
     const statusMap2 = { open:"Proses", close:"Selesai", interview:"Interview", offer:"Offering" };
     const rows = matched.map(c => `
       <tr>
