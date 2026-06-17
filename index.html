@@ -1897,9 +1897,13 @@
     }
   }
 
+  let _penempatanPage = 1;
+  let _penempatanFiltered = [];
+  const PENEMPATAN_DETAIL_SIZE = 10;
+
   function filterPenempatan(q) {
     const data = window._fulfillments || [];
-    const filtered = q
+    _penempatanFiltered = q
       ? data.filter(f => {
           const s = q.toLowerCase();
           return (f.nama||"").toLowerCase().includes(s) ||
@@ -1908,20 +1912,48 @@
                  (f.departemen||f.dep||"").toLowerCase().includes(s);
         })
       : data;
-    const tbody = document.getElementById("penempatan-tbody");
+    _penempatanPage = 1;
+    renderPenempatanDetail();
+  }
+
+  function renderPenempatanDetail() {
+    const total = _penempatanFiltered.length;
+    const start = (_penempatanPage - 1) * PENEMPATAN_DETAIL_SIZE;
+    const end   = Math.min(start + PENEMPATAN_DETAIL_SIZE, total);
+    const paged = _penempatanFiltered.slice(start, end);
     const countEl = document.getElementById("penempatan-count");
-    if (countEl) countEl.textContent = `${filtered.length} karyawan ditempatkan`;
-    if (tbody) tbody.innerHTML = filtered.map(f => `
-      <tr>
-        <td>${f.nama || "-"}</td>
-        <td style="font-size:12px;color:var(--muted)">${f.nomor_permintaan || "-"}</td>
-        <td><span style="font-weight:600;color:var(--primary)">${f.pt || "-"}</span></td>
-        <td>${f.departemen || f.dep || "-"}</td>
-        <td>${f.bagian || "-"}</td>
-        <td>${f.jabatan || "-"}</td>
-        <td style="white-space:nowrap">${f.tgl_gabung || "-"}</td>
-        <td><span class="badge badge-screening">${f.alasan || "-"}</span></td>
+    if (countEl) countEl.textContent = `${total} karyawan ditempatkan`;
+    const tbody = document.getElementById("penempatan-tbody");
+    if (tbody) tbody.innerHTML = paged.map(f => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:13px 14px">${f.nama || "-"}</td>
+        <td style="padding:13px 14px;font-size:12px;color:var(--muted)">${f.nomor_permintaan || "-"}</td>
+        <td style="padding:13px 14px"><span style="font-weight:600;color:var(--primary)">${f.pt || "-"}</span></td>
+        <td style="padding:13px 14px">${f.departemen || f.dep || "-"}</td>
+        <td style="padding:13px 14px">${f.bagian || "-"}</td>
+        <td style="padding:13px 14px">${f.jabatan || "-"}</td>
+        <td style="padding:13px 14px;white-space:nowrap">${f.tgl_gabung || "-"}</td>
+        <td style="padding:13px 14px"><span class="badge badge-screening">${f.alasan || "-"}</span></td>
       </tr>`).join("");
+    const infoEl = document.getElementById("penempatan-pagination-info");
+    if (infoEl) infoEl.textContent = total === 0 ? "Tidak ada data" : `Menampilkan ${start+1}–${end} dari ${total} karyawan`;
+    const totalPages = Math.ceil(total / PENEMPATAN_DETAIL_SIZE);
+    const btnsEl = document.getElementById("penempatan-page-btns");
+    if (!btnsEl) return;
+    let html = `<button class="page-btn" onclick="goPenempatanPage(${_penempatanPage-1})" ${_penempatanPage===1?"disabled":""} style="${_penempatanPage===1?"opacity:.4;cursor:default":""}">‹</button>`;
+    const rs = Math.max(1, _penempatanPage-2), re = Math.min(totalPages, _penempatanPage+2);
+    if (rs > 1) html += `<button class="page-btn" onclick="goPenempatanPage(1)">1</button>${rs>2?'<span style="padding:0 4px;color:var(--muted)">…</span>':""}`;
+    for (let p = rs; p <= re; p++) html += `<button class="page-btn ${p===_penempatanPage?"active":""}" onclick="goPenempatanPage(${p})">${p}</button>`;
+    if (re < totalPages) html += `${re<totalPages-1?'<span style="padding:0 4px;color:var(--muted)">…</span>':""}<button class="page-btn" onclick="goPenempatanPage(${totalPages})">${totalPages}</button>`;
+    html += `<button class="page-btn" onclick="goPenempatanPage(${_penempatanPage+1})" ${_penempatanPage===totalPages||totalPages===0?"disabled":""} style="${_penempatanPage===totalPages||totalPages===0?"opacity:.4;cursor:default":""}">›</button>`;
+    btnsEl.innerHTML = html;
+  }
+
+  function goPenempatanPage(p) {
+    const totalPages = Math.ceil(_penempatanFiltered.length / PENEMPATAN_DETAIL_SIZE);
+    if (p < 1 || p > totalPages) return;
+    _penempatanPage = p;
+    renderPenempatanDetail();
   }
 
   let _rekapPage = 1;
@@ -2093,21 +2125,16 @@
               <th style="padding:11px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Alasan</th>
             </tr>
           </thead>
-          <tbody id="penempatan-tbody">
-            ${data.map(f => `
-              <tr style="border-bottom:1px solid var(--border)">
-                <td style="padding:13px 14px">${f.nama || "-"}</td>
-                <td style="padding:13px 14px;font-size:12px;color:var(--muted)">${f.nomor_permintaan || "-"}</td>
-                <td style="padding:13px 14px"><span style="font-weight:600;color:var(--primary)">${f.pt || "-"}</span></td>
-                <td style="padding:13px 14px">${f.departemen || f.dep || "-"}</td>
-                <td style="padding:13px 14px">${f.bagian || "-"}</td>
-                <td style="padding:13px 14px">${f.jabatan || "-"}</td>
-                <td style="padding:13px 14px;white-space:nowrap">${f.tgl_gabung || "-"}</td>
-                <td style="padding:13px 14px"><span class="badge badge-screening">${f.alasan || "-"}</span></td>
-              </tr>`).join("")}
-          </tbody>
+          <tbody id="penempatan-tbody"></tbody>
         </table>
+      </div>
+      <div class="pagination">
+        <p id="penempatan-pagination-info" style="font-size:13px;color:var(--muted)">Menampilkan —</p>
+        <div class="page-btns" id="penempatan-page-btns"></div>
       </div>`;
+    _penempatanFiltered = data;
+    _penempatanPage = 1;
+    renderPenempatanDetail();
   }
 
   // ── ANALITIK ───────────────────────────────────────────────
